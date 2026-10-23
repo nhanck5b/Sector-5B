@@ -310,9 +310,12 @@
                 <div id="loading-bar-fill" class="h-full bg-amber-400 transition-all duration-300" style="width: 35%"></div>
             </div>
             <!-- Nút chuyển nhanh sang Chế độ Máy Yếu ngay trong lúc Loading -->
-            <button onclick="if(window.togglePotatoGraphicsMode) window.togglePotatoGraphicsMode();" class="mt-4 px-3 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 mono-font text-[9.5px] font-bold tracking-wider uppercase transition pointer-events-auto">
-                ⚙️ CHUYỂN CHẾ ĐỘ MÁY YẾU / ĐỒ HỌA CAO
-            </button>
+            <!-- Thanh chọn nhanh 3 mức đồ họa ngay trên màn hình Loading -->
+            <div class="mt-4 flex items-center gap-1.5 pointer-events-auto mono-font text-[9px]">
+                <button onclick="if(window.setGraphicsQualityMode) window.setGraphicsQualityMode('HIGH');" class="px-2.5 py-1 rounded bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-300 border border-slate-700 font-bold transition">✨ CAO</button>
+                <button onclick="if(window.setGraphicsQualityMode) window.setGraphicsQualityMode('POTATO');" class="px-2.5 py-1 rounded bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 font-bold transition">⚡ MÁY YẾU</button>
+                <button onclick="if(window.setGraphicsQualityMode) window.setGraphicsQualityMode('ULTRA_POTATO');" class="px-2.5 py-1 rounded bg-slate-900 hover:bg-emerald-500 hover:text-slate-950 text-emerald-300 border border-emerald-400/40 font-bold transition">🥔 SIÊU YẾU</button>
+            </div>
         </div>
 
         <div class="absolute bottom-4 right-5 flex items-center gap-2 mono-font text-[10px] text-slate-600 tracking-widest uppercase">
@@ -1118,15 +1121,12 @@
                     <span>🔊 BGM</span>
                 </button>
 
-                <!-- Nút Bật/Tắt Giảm Lag Cực Đoan Tức Thì [F9] -->
-                <button id="potato-mode-btn" onclick="window.toggleUltraPotatoMode()" class="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 flex items-center gap-1 transition font-bold" title="Bật/Tắt Chế độ Giảm Lag Cực Đoan cho máy yếu (Phím tắt: F9)">
-                    <span id="potato-mode-btn-txt">⚡ GIẢM LAG: TẮT</span>
-                </button>
-
-                <!-- Nút Chuyển Đổi Đồ Họa Cực Nhẹ (Potato Mode) / Đồ Họa Cao -->
-                <button id="gfx-mode-btn" onclick="window.togglePotatoGraphicsMode()" class="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 flex items-center gap-1 transition font-bold" title="Chuyển đổi Đồ họa Siêu Nhẹ (Cho máy yếu) / Đồ họa Cao">
-                    <span id="gfx-mode-btn-txt">🥔 ĐỒ HỌA: CAO</span>
-                </button>
+                <!-- Dropdown Chọn 3 Chế Độ Đồ Họa: Cao / Máy Yếu / Siêu Yếu Cực Đoan -->
+                <select id="gfx-mode-select" onchange="window.setGraphicsQualityMode(this.value)" class="px-2.5 py-1 rounded-lg bg-slate-900/95 hover:bg-slate-800 text-amber-300 border border-amber-400/40 mono-font text-[9.5px] font-bold outline-none cursor-pointer transition" title="Chọn cấu hình Đồ họa phù hợp với máy tính của bạn">
+                    <option value="HIGH">✨ ĐỒ HỌA: CAO</option>
+                    <option value="POTATO">⚡ ĐỒ HỌA: MÁY YẾU</option>
+                    <option value="ULTRA_POTATO">🥔 ĐỒ HỌA: SIÊU YẾU (CỰC ĐOAN)</option>
+                </select>
 
                 <button onclick="toggleGameLanguage()" id="lang-toggle-btn" class="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-950 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition font-bold" title="Chuyển đổi ngôn ngữ Tiếng Việt / English">
                     <span id="lang-flag-svg" class="inline-flex items-center">
@@ -3052,11 +3052,47 @@
         const spectatorBaseSpeed = 75; // m/s (270 km/h)
         let isHUDHidden = false;
 
-        // Tự động chuyển các vật liệu nhám tĩnh (đất, đá, bê tông, gỗ) sang Lambert Shader siêu nhẹ GPU
+        // ═══ HỆ THỐNG 3 CHẾ ĐỘ ĐỒ HỌA: HIGH (CAO) / POTATO (MÁY YẾU) / ULTRA_POTATO (SIÊU YẾU CỰC ĐOAN) ═══
+        const savedGfxPref = (() => {
+            try { return localStorage.getItem('st_gfx_mode'); } catch (e) { return null; }
+        })();
+        const isWeakHardwareDetected = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+                                       (navigator.deviceMemory && navigator.deviceMemory <= 4);
+
+        window.GFX_MODE = savedGfxPref || (isWeakHardwareDetected ? 'POTATO' : 'HIGH');
+        window.IS_ULTRA_POTATO = (window.GFX_MODE === 'ULTRA_POTATO');
+        window.IS_POTATO_MODE = (window.GFX_MODE === 'POTATO' || window.IS_ULTRA_POTATO);
+
+        // Kích hoạt ngay class .potato-mode trên thẻ body để tắt hoàn toàn CSS backdrop-filter: blur() gây 1-5 FPS!
+        if (window.IS_POTATO_MODE && document.body) {
+            document.body.classList.add('potato-mode');
+        }
+
+        window.setGraphicsQualityMode = function(targetMode) {
+            if (!targetMode || targetMode === window.GFX_MODE) return;
+            try { localStorage.setItem('st_gfx_mode', targetMode); } catch (e) {}
+            const loadingEl = document.getElementById('initial-loading-screen');
+            if (loadingEl) {
+                loadingEl.classList.remove('loading-hidden');
+                const modeLabel = targetMode === 'ULTRA_POTATO' ? 'ULTRA POTATO MODE' : (targetMode === 'POTATO' ? 'LOW SPEC MODE' : 'HIGH GRAPHICS');
+                safeSetText('loading-main-label', modeLabel);
+                safeSetText('loading-sub-status', 'ĐANG ÁP DỤNG CẤU HÌNH ĐỒ HỌA & KHỞI ĐỘNG LẠI...');
+            }
+            setTimeout(() => window.location.reload(), 100);
+        };
+        window.togglePotatoGraphicsMode = function() {
+            const next = window.GFX_MODE === 'HIGH' ? 'POTATO' : (window.GFX_MODE === 'POTATO' ? 'ULTRA_POTATO' : 'HIGH');
+            window.setGraphicsQualityMode(next);
+        };
+        window.toggleUltraPotatoMode = function() {
+            window.togglePotatoGraphicsMode();
+        };
+
+        // Tự động tối ưu Shader Vật liệu: Ở chế độ ULTRA_POTATO, chuyển toàn bộ Standard & Phong sang Lambert siêu nhẹ!
         (function enableFastTerrainAndBuildingShaders() {
             const OrigStdMat = THREE.MeshStandardMaterial;
             THREE.MeshStandardMaterial = function(params) {
-                if (params && (params.roughness ?? 0.8) >= 0.72 && !params.emissiveMap && (params.metalness ?? 0) < 0.45) {
+                if (window.IS_ULTRA_POTATO || (params && (params.roughness ?? 0.8) >= 0.72 && !params.emissiveMap && (params.metalness ?? 0) < 0.45)) {
                     const lambertParams = { ...params };
                     delete lambertParams.roughness;
                     delete lambertParams.metalness;
@@ -3065,31 +3101,18 @@
                 return new OrigStdMat(params);
             };
             THREE.MeshStandardMaterial.prototype = OrigStdMat.prototype;
-        })();
 
-        // ═══ HỆ THỐNG CẤU HÌNH ĐỒ HỌA THÍCH ỨNG (HIGH vs POTATO ULTRA-LOW CHO MÁY YẾU) ═══
-        const savedGfxPref = (() => {
-            try { return localStorage.getItem('st_gfx_mode'); } catch (e) { return null; }
-        })();
-        const isWeakHardwareDetected = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
-                                       (navigator.deviceMemory && navigator.deviceMemory <= 4);
-
-        window.GFX_MODE = savedGfxPref || (isWeakHardwareDetected ? 'POTATO' : 'HIGH');
-        window.IS_POTATO_MODE = (window.GFX_MODE === 'POTATO');
-
-        window.togglePotatoGraphicsMode = function(forceMode) {
-            const nextMode = forceMode || (window.IS_POTATO_MODE ? 'HIGH' : 'POTATO');
-            try { localStorage.setItem('st_gfx_mode', nextMode); } catch (e) {}
-            const loadingEl = document.getElementById('initial-loading-screen');
-            if (loadingEl) {
-                loadingEl.classList.remove('loading-hidden');
-                safeSetText('loading-main-label', nextMode === 'POTATO' ? 'POTATO MODE' : 'HIGH GRAPHICS');
-                safeSetText('loading-sub-status', nextMode === 'POTATO'
-                    ? 'ĐANG KHỞI ĐỘNG LẠI Ở CHẾ ĐỘ SIÊU NHẸ CHO MÁY YẾU...'
-                    : 'ĐANG KHỞI ĐỘNG LẠI Ở CHẾ ĐỘ ĐỒ HỌA ĐẦY ĐỦ...');
+            if (window.IS_ULTRA_POTATO) {
+                const OrigPhongMat = THREE.MeshPhongMaterial;
+                THREE.MeshPhongMaterial = function(params) {
+                    const lambertParams = { ...params };
+                    delete lambertParams.shininess;
+                    delete lambertParams.specular;
+                    return new THREE.MeshLambertMaterial(lambertParams);
+                };
+                THREE.MeshPhongMaterial.prototype = OrigPhongMat.prototype;
             }
-            setTimeout(() => window.location.reload(), 120);
-        };
+        })();
 
         const canvas = document.getElementById('game-canvas');
         const renderer = new THREE.WebGLRenderer({
@@ -3098,12 +3121,13 @@
             powerPreference: 'high-performance'
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.IS_POTATO_MODE ? 0.78 : Math.min(window.devicePixelRatio, 1.0));
+        // Hạ PixelRatio xuống 0.50 ở chế độ SIÊU YẾU (giảm 75% gánh nặng điểm ảnh cho Card Onboard)
+        renderer.setPixelRatio(window.IS_ULTRA_POTATO ? 0.50 : (window.IS_POTATO_MODE ? 0.75 : Math.min(window.devicePixelRatio, 1.0)));
         renderer.shadowMap.enabled = !window.IS_POTATO_MODE;
         renderer.shadowMap.type = THREE.PCFShadowMap;
         renderer.shadowMap.autoUpdate = false;
-        renderer.shadowMap.needsUpdate = true;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.shadowMap.needsUpdate = !window.IS_POTATO_MODE;
+        renderer.toneMapping = window.IS_ULTRA_POTATO ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 0.96;
 
         const scene = new THREE.Scene();
@@ -3880,7 +3904,7 @@
 
         const TERRAIN_SIZE = 4400;
         const MAP_HALF_SIZE = 2050;
-        const TERRAIN_SEGMENTS = 220;
+        const TERRAIN_SEGMENTS = window.IS_ULTRA_POTATO ? 110 : 220;
         const terrainHeightGrid = new Float32Array((TERRAIN_SEGMENTS + 1) * (TERRAIN_SEGMENTS + 1));
         const RIVER_WATER_Y = -0.75;
         const BRIDGE_X_COORDS = [-520, -260, 0, 175, 520];
@@ -37954,13 +37978,16 @@ function createHouseWindowEmissiveTexture() {
             refreshHangarCardsUI();
         }
 
-        window.onload = function () {
-            const gfxTxt = document.getElementById('gfx-mode-btn-txt');
-            if (gfxTxt) {
-                gfxTxt.textContent = window.IS_POTATO_MODE
-                    ? (window.currentGameLang === 'en' ? '🥔 GFX: POTATO (FAST)' : '🥔 ĐỒ HỌA: MÁY YẾU')
-                    : (window.currentGameLang === 'en' ? '✨ GFX: HIGH' : '✨ ĐỒ HỌA: CAO');
+        window.onload = function () {
+            // Đồng bộ giá trị Dropdown chọn đồ họa trên Menu
+            const gfxSelect = document.getElementById('gfx-mode-select');
+            if (gfxSelect) {
+                gfxSelect.value = window.GFX_MODE || 'HIGH';
             }
+            if (window.IS_POTATO_MODE) {
+                document.body.classList.add('potato-mode');
+            }
+
             const barFill = document.getElementById('loading-bar-fill');
             const subStatus = document.getElementById('loading-sub-status');
             if (barFill) barFill.style.width = '75%';
@@ -37971,8 +37998,9 @@ function createHouseWindowEmissiveTexture() {
             previewVehicleIn3DHangar(selectedVehicleIdx);
             renderTacticalMinimap();
 
-            // Kết xuất khung hình 3D đầu tiên của xe tăng và menu trước khi tắt màn hình Loading
-            renderer.shadowMap.needsUpdate = true;
+            if (!window.IS_POTATO_MODE) {
+                renderer.shadowMap.needsUpdate = true;
+            }
             renderer.render(scene, camera);
             requestAnimationFrame(animateLoop);
 
@@ -37988,147 +38016,60 @@ function createHouseWindowEmissiveTexture() {
             }, 180);
         };
 
-            // ════════════════════════════════════════════════════════════════════════════
-        // MODULE GIẢM LAG CỰC ĐOAN ĐỘC LẬP (ZERO-INTRUSION ULTRA POTATO BOOSTER)
-        // Bật/Tắt tức thì bằng nút bấm hoặc phím [F9] - Không chạm vào logic game gốc!
         // ════════════════════════════════════════════════════════════════════════════
-        (function initUltraPotatoBooster() {
-            window.isUltraPotatoMode = false;
-            let _origShadowNeedsUpdateDescriptor = null;
+        // BỘ TỐI ƯU CỰC ĐOAN CHO CHẾ ĐỘ SIÊU YẾU (ULTRA_POTATO)
+        // Giữ nguyên 100% tầm nhìn ICBM / Máy bay / Nấm hạt nhân & Không chạm vào logic gốc!
+        // ════════════════════════════════════════════════════════════════════════════
+        (function applyNonIntrusiveGraphicsOptimizer() {
+            // 1. Giữ nguyên camera.far = 18000 để ICBM, Máy bay Tu-160 và Nấm Hạt Nhân luôn hiển thị rõ 100%!
+            if (typeof camera !== 'undefined' && camera) {
+                camera.far = 18000;
+                camera.updateProjectionMatrix();
+            }
 
-            window.toggleUltraPotatoMode = function(forceState) {
-                window.isUltraPotatoMode = typeof forceState === 'boolean' ? forceState : !window.isUltraPotatoMode;
-                const isPotato = window.isUltraPotatoMode;
+            // 2. Chặn vĩnh viễn việc tính lại ShadowMap mỗi khi xoay chuột ở chế độ POTATO & ULTRA_POTATO
+            if (window.IS_POTATO_MODE && typeof renderer !== 'undefined' && renderer && renderer.shadowMap) {
+                renderer.shadowMap.enabled = false;
+                renderer.shadowMap.autoUpdate = false;
+                if (typeof sunLight !== 'undefined' && sunLight) sunLight.castShadow = false;
+                Object.defineProperty(renderer.shadowMap, 'needsUpdate', {
+                    get() { return false; },
+                    set() {}
+                });
+            }
 
-                try { localStorage.setItem('st_ultra_potato', isPotato ? '1' : '0'); } catch (e) {}
-
-                // 1. Ngắt ngay lập tức CSS backdrop-filter: blur() trên toàn bộ giao diện
-                document.body.classList.toggle('potato-mode', isPotato);
-
-                // 2. Hạ độ phân giải nội bộ WebGL xuống 0.58x & tắt ToneMapping nặng trên GPU yếu
-                if (typeof renderer !== 'undefined' && renderer) {
-                    renderer.setPixelRatio(isPotato ? 0.58 : Math.min(window.devicePixelRatio || 1, 1.0));
-                    renderer.setSize(window.innerWidth, window.innerHeight);
-                    renderer.toneMapping = isPotato ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
-
-                    // 3. Khóa hoàn toàn việc vẽ lại ShadowMap mỗi khi xoay chuột ở Menu hoặc xoay tháp pháo!
-                    renderer.shadowMap.enabled = !isPotato;
-                    renderer.shadowMap.autoUpdate = false;
-                    if (isPotato && sunLight && sunLight.shadow && sunLight.shadow.map) {
-                        sunLight.castShadow = false;
-                    } else if (!isPotato && typeof sunLight !== 'undefined') {
-                        sunLight.castShadow = true;
-                        renderer.shadowMap.needsUpdate = true;
-                    }
-                    // Biên dịch lại vật liệu 1 lần để gỡ bỏ tính toán bóng đổ khỏi Shader
-                    scene.traverse(obj => {
-                        if (obj.isMesh && obj.material) {
-                            if (Array.isArray(obj.material)) obj.material.forEach(m => m.needsUpdate = true);
-                            else obj.material.needsUpdate = true;
-                        }
-                    });
-                }
-
-                // 4. Thu gọn tầm nhìn Camera (camera.far) để khi xoay tháp pháo không phải render cảnh vật cách 18km
-                if (typeof camera !== 'undefined' && camera) {
-                    camera.far = isPotato ? 780 : 18000;
-                    camera.updateProjectionMatrix();
-                }
-
-                // 5. Ẩn tạm thời các lớp trang trí đồ họa (Cỏ, Hoa, Bụi cây, Bầu trời 3D, Núi viễn cảnh)
-                // -> KHÔNG HỀ ĐỤNG ĐẾN obstacles HAY destructibleWalls NÊN VẬT LÝ & VA CHẠM GIỮ NGUYÊN 100%!
-                const toggleDecor = (obj, vis) => { if (obj) obj.visible = vis; };
-                toggleDecor(typeof outerWorldMesh !== 'undefined' ? outerWorldMesh : null, !isPotato);
-                toggleDecor(typeof grassInstanced !== 'undefined' ? grassInstanced : null, !isPotato);
-                toggleDecor(typeof flowerInstanced !== 'undefined' ? flowerInstanced : null, !isPotato);
-                toggleDecor(typeof shrubInstanced !== 'undefined' ? shrubInstanced : null, !isPotato);
-                toggleDecor(typeof cirrusLayerMesh !== 'undefined' ? cirrusLayerMesh : null, !isPotato);
-                toggleDecor(typeof cumulonimbusMesh !== 'undefined' ? cumulonimbusMesh : null, !isPotato);
-                toggleDecor(typeof starFieldPoints !== 'undefined' ? starFieldPoints : null, !isPotato);
-                toggleDecor(window._ripBushInst, !isPotato);
+            // 3. Nếu đang ở chế độ SIÊU YẾU CỰC ĐOAN (ULTRA_POTATO):
+            if (window.IS_ULTRA_POTATO) {
+                // Ẩn toàn bộ các lớp thực vật & cảnh nền trang trí (0 ảnh hưởng tới vật lý va chạm!)
+                const hideIfExist = (obj) => { if (obj) obj.visible = false; };
+                hideIfExist(typeof outerWorldMesh !== 'undefined' ? outerWorldMesh : null);
+                hideIfExist(typeof grassInstanced !== 'undefined' ? grassInstanced : null);
+                hideIfExist(typeof flowerInstanced !== 'undefined' ? flowerInstanced : null);
+                hideIfExist(typeof shrubInstanced !== 'undefined' ? shrubInstanced : null);
+                hideIfExist(typeof cirrusLayerMesh !== 'undefined' ? cirrusLayerMesh : null);
+                hideIfExist(typeof starFieldPoints !== 'undefined' ? starFieldPoints : null);
+                hideIfExist(window._ripBushInst);
 
                 if (typeof foliageChunksList !== 'undefined' && Array.isArray(foliageChunksList)) {
                     for (let i = 0; i < foliageChunksList.length; i++) {
                         if (foliageChunksList[i] && foliageChunksList[i].mesh) {
-                            foliageChunksList[i].mesh.visible = !isPotato;
+                            foliageChunksList[i].mesh.visible = false;
                         }
                     }
                 }
 
-                // 6. Tắt Pool 8 đèn PointLight động ban đêm (giữ lại đèn mặt trời & bán cầu nhẹ)
-                if (typeof dynamicPointLightPool !== 'undefined' && Array.isArray(dynamicPointLightPool)) {
-                    dynamicPointLightPool.forEach(pl => { if (pl) pl.visible = !isPotato; });
-                }
+                // Tắt các hàm hiệu ứng phụ tốn CPU mỗi khung hình
+                window.updateDynamicMapLights = function() {};
+                window.updateTrampledFoliage = function() {};
+                window.enableTriplanarUnstretchedCamo = function() {};
 
-                // 7. Cập nhật nhãn nút bấm trên Menu
-                const btnTxt = document.getElementById('potato-mode-btn-txt');
-                const btnEl = document.getElementById('potato-mode-btn');
-                if (btnTxt) {
-                    const isEn = (window.currentGameLang === 'en');
-                    btnTxt.textContent = isPotato
-                        ? (isEn ? '⚡ LOW SPEC: ON' : '⚡ GIẢM LAG: BẬT')
-                        : (isEn ? '⚡ LOW SPEC: OFF' : '⚡ GIẢM LAG: TẮT');
+                // Giảm sương mù xuống mức nhẹ để người chơi ở chế độ Siêu Yếu nhìn xa rõ nét và ngắm trọn vẹn Hạt nhân / Máy bay
+                if (typeof scene !== 'undefined' && scene.fog) {
+                    scene.fog.density = 0.00018;
                 }
-                if (btnEl) {
-                    btnEl.className = isPotato
-                        ? "px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 border border-emerald-300 flex items-center gap-1 transition font-extrabold shadow-[0_0_12px_rgba(16,185,129,0.5)]"
-                        : "px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 flex items-center gap-1 transition font-bold";
-                }
-
-                if (typeof soundFX !== 'undefined' && soundFX.playRadioBeep) soundFX.playRadioBeep();
-            };
-
-            // Ngăn chặn vòng lặp animateLoop ép vẽ lại bóng đổ mỗi khi xoay chuột ở Menu nếu đang bật Giảm Lag
-            if (typeof renderer !== 'undefined' && renderer && renderer.shadowMap) {
-                let _shadowUpdateFlag = false;
-                Object.defineProperty(renderer.shadowMap, 'needsUpdate', {
-                    get() { return window.isUltraPotatoMode ? false : _shadowUpdateFlag; },
-                    set(val) { _shadowUpdateFlag = window.isUltraPotatoMode ? false : Boolean(val); }
-                });
             }
-
-            // Bọc nhẹ hàm updateDynamicMapLights và updateTrampledFoliage để bỏ qua tính toán phụ khi bật Giảm Lag
-            if (typeof updateDynamicMapLights === 'function') {
-                const _origLights = updateDynamicMapLights;
-                updateDynamicMapLights = function(dt) {
-                    if (window.isUltraPotatoMode) return;
-                    return _origLights(dt);
-                };
-            }
-            if (typeof updateTrampledFoliage === 'function') {
-                const _origTrample = updateTrampledFoliage;
-                updateTrampledFoliage = function(dt) {
-                    if (window.isUltraPotatoMode) return;
-                    return _origTrample(dt);
-                };
-            }
-
-            // Phím tắt [F9] để Bật/Tắt chế độ Giảm Lag bất kỳ lúc nào ngay cả khi đang trong trận!
-            window.addEventListener('keydown', (e) => {
-                if (e.code === 'F9') {
-                    e.preventDefault();
-                    window.toggleUltraPotatoMode();
-                    if (typeof triggerBattleBanner === 'function' && gameActive) {
-                        triggerBattleBanner(
-                            window.isUltraPotatoMode ? "ĐÃ BẬT CHẾ ĐỘ GIẢM LAG [F9]" : "ĐÃ KHÔI PHỤC ĐỒ HỌA ĐẦY ĐỦ [F9]",
-                            "",
-                            "text-emerald-400"
-                        );
-                    }
-                }
-            });
-
-            // Tự động khôi phục lựa chọn của máy yếu từ lần chơi trước
-            try {
-                const saved = localStorage.getItem('st_ultra_potato');
-                const isWeakPC = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
-                                 (navigator.deviceMemory && navigator.deviceMemory <= 4);
-                if (saved === '1' || (saved === null && isWeakPC)) {
-                    setTimeout(() => window.toggleUltraPotatoMode(true), 100);
-                }
-            } catch (e) {}
         })();
-
+        
     </script>
 </body>
 </html>
