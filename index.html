@@ -258,6 +258,20 @@
         .loading-dot-1 { animation: loadingDotsPulse 1.4s infinite 0.0s; }
         .loading-dot-2 { animation: loadingDotsPulse 1.4s infinite 0.25s; }
         .loading-dot-3 { animation: loadingDotsPulse 1.4s infinite 0.5s; }
+            /* Tắt toàn bộ hiệu ứng làm mờ nền kính (thủ phạm số 1 gây 1-2 FPS khi xoay camera trên máy yếu) */
+        body.potato-mode .wt-panel,
+        body.potato-mode .saas-dock-btn,
+        body.potato-mode .tac-corner-card,
+        body.potato-mode .damaged-terminal-card,
+        body.potato-mode #artillery-map-modal {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
+            background: rgba(10, 15, 24, 0.96) !important;
+        }
+        body.potato-mode .thermal-filter {
+            filter: brightness(135%) contrast(125%) sepia(80%) hue-rotate(65deg) !important;
+        }
     </style>
 </head>
 <body>
@@ -295,6 +309,10 @@
             <div class="mt-3 w-48 h-1 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
                 <div id="loading-bar-fill" class="h-full bg-amber-400 transition-all duration-300" style="width: 35%"></div>
             </div>
+            <!-- Nút chuyển nhanh sang Chế độ Máy Yếu ngay trong lúc Loading -->
+            <button onclick="if(window.togglePotatoGraphicsMode) window.togglePotatoGraphicsMode();" class="mt-4 px-3 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 mono-font text-[9.5px] font-bold tracking-wider uppercase transition pointer-events-auto">
+                ⚙️ CHUYỂN CHẾ ĐỘ MÁY YẾU / ĐỒ HỌA CAO
+            </button>
         </div>
 
         <div class="absolute bottom-4 right-5 flex items-center gap-2 mono-font text-[10px] text-slate-600 tracking-widest uppercase">
@@ -1098,6 +1116,16 @@
 
                                 <button id="bgm-mute-btn" onclick="if (typeof bgmManager !== 'undefined') { bgmManager.userInteracted = true; bgmManager.toggleMute(); }" class="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-emerald-400 border border-slate-700 flex items-center gap-1 transition font-bold" title="Bật/Tắt nhạc nền BGM">
                     <span>🔊 BGM</span>
+                </button>
+
+                <!-- Nút Bật/Tắt Giảm Lag Cực Đoan Tức Thì [F9] -->
+                <button id="potato-mode-btn" onclick="window.toggleUltraPotatoMode()" class="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 flex items-center gap-1 transition font-bold" title="Bật/Tắt Chế độ Giảm Lag Cực Đoan cho máy yếu (Phím tắt: F9)">
+                    <span id="potato-mode-btn-txt">⚡ GIẢM LAG: TẮT</span>
+                </button>
+
+                <!-- Nút Chuyển Đổi Đồ Họa Cực Nhẹ (Potato Mode) / Đồ Họa Cao -->
+                <button id="gfx-mode-btn" onclick="window.togglePotatoGraphicsMode()" class="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 flex items-center gap-1 transition font-bold" title="Chuyển đổi Đồ họa Siêu Nhẹ (Cho máy yếu) / Đồ họa Cao">
+                    <span id="gfx-mode-btn-txt">🥔 ĐỒ HỌA: CAO</span>
                 </button>
 
                 <button onclick="toggleGameLanguage()" id="lang-toggle-btn" class="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-950 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition font-bold" title="Chuyển đổi ngôn ngữ Tiếng Việt / English">
@@ -3039,11 +3067,39 @@
             THREE.MeshStandardMaterial.prototype = OrigStdMat.prototype;
         })();
 
+        // ═══ HỆ THỐNG CẤU HÌNH ĐỒ HỌA THÍCH ỨNG (HIGH vs POTATO ULTRA-LOW CHO MÁY YẾU) ═══
+        const savedGfxPref = (() => {
+            try { return localStorage.getItem('st_gfx_mode'); } catch (e) { return null; }
+        })();
+        const isWeakHardwareDetected = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+                                       (navigator.deviceMemory && navigator.deviceMemory <= 4);
+
+        window.GFX_MODE = savedGfxPref || (isWeakHardwareDetected ? 'POTATO' : 'HIGH');
+        window.IS_POTATO_MODE = (window.GFX_MODE === 'POTATO');
+
+        window.togglePotatoGraphicsMode = function(forceMode) {
+            const nextMode = forceMode || (window.IS_POTATO_MODE ? 'HIGH' : 'POTATO');
+            try { localStorage.setItem('st_gfx_mode', nextMode); } catch (e) {}
+            const loadingEl = document.getElementById('initial-loading-screen');
+            if (loadingEl) {
+                loadingEl.classList.remove('loading-hidden');
+                safeSetText('loading-main-label', nextMode === 'POTATO' ? 'POTATO MODE' : 'HIGH GRAPHICS');
+                safeSetText('loading-sub-status', nextMode === 'POTATO'
+                    ? 'ĐANG KHỞI ĐỘNG LẠI Ở CHẾ ĐỘ SIÊU NHẸ CHO MÁY YẾU...'
+                    : 'ĐANG KHỞI ĐỘNG LẠI Ở CHẾ ĐỘ ĐỒ HỌA ĐẦY ĐỦ...');
+            }
+            setTimeout(() => window.location.reload(), 120);
+        };
+
         const canvas = document.getElementById('game-canvas');
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        const renderer = new THREE.WebGLRenderer({
+            canvas,
+            antialias: !window.IS_POTATO_MODE,
+            powerPreference: 'high-performance'
+        });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
-        renderer.shadowMap.enabled = true;
+        renderer.setPixelRatio(window.IS_POTATO_MODE ? 0.78 : Math.min(window.devicePixelRatio, 1.0));
+        renderer.shadowMap.enabled = !window.IS_POTATO_MODE;
         renderer.shadowMap.type = THREE.PCFShadowMap;
         renderer.shadowMap.autoUpdate = false;
         renderer.shadowMap.needsUpdate = true;
@@ -3179,7 +3235,7 @@
             },
 
             saveInitialMapSnapshots() {
-                if (this.treeSnapshotsSaved) return;
+                if (this.treeSnapshotsSaved || window.IS_POTATO_MODE) return;
                 this.treeSnapshotsSaved = true;
                 if (typeof trunkInstanced !== 'undefined' && trunkInstanced.instanceMatrix) {
                     this.coniferSnap = new Float32Array(trunkInstanced.instanceMatrix.array);
@@ -6380,6 +6436,7 @@
         const _bendAxis = new THREE.Vector3();
 
         function registerTrampleableInstance(instMesh, idx, x, y, z, baseMatrix) {
+            if (window.IS_POTATO_MODE) return; // Máy yếu bỏ qua lưu 57.000 mảng Float32Array để vào game tức thì!
             if (!instMesh || !baseMatrix) return;
             const cx = Math.floor(x / TRAMPLE_CELL_SIZE);
             const cz = Math.floor(z / TRAMPLE_CELL_SIZE);
@@ -7188,7 +7245,7 @@
 
         (function buildRiverbankScenery() {
             // 1. Khóm Lau Sậy & Cỏ Đuôi Chồn ven sông (Tránh hoàn toàn khu vực Bờ Kè Đá Trung Tâm x = -168..168 để không mọc xuyên đá!)
-            const REED_COUNT = 800;
+            const REED_COUNT = window.IS_POTATO_MODE ? 120 : 800;
             const reedGeo = createRealisticReedClumpGeometry();
             const reedMat = new THREE.MeshLambertMaterial({ color: 0x3f6228, side: THREE.DoubleSide });
             const reedInstanced = new THREE.InstancedMesh(reedGeo, reedMat, REED_COUNT);
@@ -7227,7 +7284,7 @@
             scene.add(reedInstanced);
 
             // 2. Bãi Đá Cuội & Đá Tảng Ven Sông (GPU Instanced Riverbank Cobbles & Boulders làm mềm ranh giới Đất - Nước)
-            const SHORE_ROCK_COUNT = 1100;
+            const SHORE_ROCK_COUNT = window.IS_POTATO_MODE ? 180 : 1100;
             const shoreRockGeo = createRealisticBoulderGeometry();
             const shoreRockMat = new THREE.MeshLambertMaterial({ color: 0x57534e });
             const shoreRockInst = new THREE.InstancedMesh(shoreRockGeo, shoreRockMat, SHORE_ROCK_COUNT);
@@ -7263,8 +7320,8 @@
             scene.add(shoreRockInst);
 
             // 3. Cây & Bụi cây ven sông (Riparian Trees & Shrubs)
-            const RIPARIAN_TREE_COUNT = 520;
-            const RIPARIAN_SHRUB_COUNT = 1200;
+            const RIPARIAN_TREE_COUNT = window.IS_POTATO_MODE ? 160 : 520;
+            const RIPARIAN_SHRUB_COUNT = window.IS_POTATO_MODE ? 220 : 1200;
             const ripTrunkGeo = new THREE.CylinderGeometry(0.20, 0.42, 3.8, 6);
             ripTrunkGeo.translate(0, 1.9, 0);
             const ripTrunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3b2c, roughness: 0.92 });
@@ -7958,7 +8015,7 @@
             scene.add(chunkGroup);
         }
 
-        const GRASS_COUNT = 22000;
+        const GRASS_COUNT = window.IS_POTATO_MODE ? 1800 : 22000;
         const grassGeo = createRealisticGrassTuftGeometry();
         const grassMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
         var grassInstanced = new THREE.InstancedMesh(grassGeo, grassMat, GRASS_COUNT);
@@ -8170,7 +8227,7 @@
         }
 
         // Alpine Mountain Wildflowers & Highland Heather Clusters (4,200 natural patches on hills & meadows)
-        const FLOWER_COUNT = 15000;
+        const FLOWER_COUNT = window.IS_POTATO_MODE ? 900 : 15000;
         const flowerGeo = createRealisticWildflowerGeometry();
         const flowerMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
         var flowerInstanced = new THREE.InstancedMesh(flowerGeo, flowerMat, FLOWER_COUNT);
@@ -8581,7 +8638,7 @@
         updateSkyDomeGradientColors(0x0f296b, 0x2563eb, 0x93c5fd);
 
         // 4. Hệ thống Hạt Mưa Bão, Tuyết Xoáy & Luồng Gió Lốc Ngang (480 hạt tối ưu cực nhẹ CPU!)
-        const RAIN_COUNT = 480;
+        const RAIN_COUNT = window.IS_POTATO_MODE ? 120 : 480;
         const rainGeo = new THREE.BufferGeometry();
         const rainPositions = new Float32Array(RAIN_COUNT * 6);
         const rainDropsData = [];
@@ -9225,7 +9282,7 @@ function createHouseWindowEmissiveTexture() {
         var _lampDummy = new THREE.Object3D();
         var worldLightEmitters = (typeof worldLightEmitters !== 'undefined' && worldLightEmitters) ? worldLightEmitters : [];
         var dynamicPointLightPool = (typeof dynamicPointLightPool !== 'undefined' && dynamicPointLightPool) ? dynamicPointLightPool : [];
-        var DYNAMIC_LIGHT_POOL_SIZE = 8;
+        var DYNAMIC_LIGHT_POOL_SIZE = window.IS_POTATO_MODE ? 0 : 8;
         var _lightPoolUpdateTimer = 0;
         var _baseTerrainVertexColors = null;
         var _prebakedNightAddRGB = null;
@@ -15539,7 +15596,7 @@ function createHouseWindowEmissiveTexture() {
             ctx.clip();
 
             // 1. VẼ ĐỊA HÌNH THẬT & VÙNG LÒNG CHẢO TỰ NHIÊN SECTOR 5B KẸP GIỮA 2 QUỐC GIA
-            const step = 6;
+            const step = window.IS_POTATO_MODE ? 16 : 10; // Tăng tốc vẽ texture bản đồ FOB gấp 5 lần khi khởi động!
             for (let py = mapY; py < mapY + mapH; py += step) {
                 for (let px = mapX; px < mapX + mapW; px += step) {
                     const dx = (px - cx) / (scalePx * 1.28);
@@ -16773,7 +16830,7 @@ function createHouseWindowEmissiveTexture() {
             });
 
             // 3. ĐẠI CÁNH ĐỒNG LÚA MÌ 3D BẠT NGÀN TRẢI RỘNG TỪ x = -390 RA TẬN RÌA MAP x = -1320 (18.500 Khóm Bông Lúa 3D InstancedMesh!)
-            const WHEAT_TUFT_COUNT = 18500;
+            const WHEAT_TUFT_COUNT = window.IS_POTATO_MODE ? 2400 : 18500;
             const wheatTuftGeo = createRealisticWheatTuftGeometry();
             const wheatTuftMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
             const wheatInstanced = new THREE.InstancedMesh(wheatTuftGeo, wheatTuftMat, WHEAT_TUFT_COUNT);
@@ -16781,7 +16838,7 @@ function createHouseWindowEmissiveTexture() {
             const wheatMatrix = new THREE.Object3D();
             const wheatColor = new THREE.Color();
             const wheatZones = [
-                { xMin: -1340, xMax: -388, zMin: 180, zMax: 865, stepX: 5.0, stepZ: 4.8 }
+                { xMin: -1340, xMax: -388, zMin: 180, zMax: 865, stepX: window.IS_POTATO_MODE ? 13.5 : 5.0, stepZ: window.IS_POTATO_MODE ? 13.0 : 4.8 }
             ];
 
             let placedWheat = 0;
@@ -24622,6 +24679,7 @@ function createHouseWindowEmissiveTexture() {
                     this.gunPitch += Math.sign(diffPitch) * maxPitchStep;
                 }
                 this.model.gunPivot.rotation.x = -this.gunPitch;
+                this._lastMatUpdateFrame = -1; // Buộc getMuzzleWorldData() lấy đúng hướng nòng mới vừa xoay!
             }
         }
 
@@ -25075,7 +25133,7 @@ function createHouseWindowEmissiveTexture() {
             }, 4800);
         }
 
-        const PARTICLE_POOL_SIZE = 280;
+        const PARTICLE_POOL_SIZE = window.IS_POTATO_MODE ? 95 : 280;
         const particlePool = [];
         const sharedParticleGeo = new THREE.DodecahedronGeometry(0.45, 0);
         for (let i = 0; i < PARTICLE_POOL_SIZE; i++) {
@@ -30181,7 +30239,7 @@ function createHouseWindowEmissiveTexture() {
             if (playerTank.spec.role === 'SPAA' && playerTank.modules.radar === false) {
                 lockedAirTarget = null;
             }
-            if (lockedAirTarget && (playerTank.spec.role === 'SPAA' || playerTank.spec.role === 'IFV' || playerTank.isAircraft())) {
+            if (lockedAirTarget && (playerTank.spec.role === 'SPAA' || playerTank.isAircraft())) {
                 const minJetDist = Math.hypot(lockedAirTarget.x - playerTank.x, lockedAirTarget.y - playerTank.y, lockedAirTarget.z - playerTank.z);
                 const shellSpd = playerTank.spec.shells[currentShellIdx].speed;
                 const tFlight = minJetDist / shellSpd;
@@ -30584,8 +30642,8 @@ function createHouseWindowEmissiveTexture() {
 
         function hasClearTacticalLineOfSight(observer, target) {
             if (!observer || !target || !target.alive) return false;
-            const startX = observer.x, startY = (observer.y || 0) + 2.1, startZ = observer.z;
-            const endX = target.x, endY = (target.y || 0) + 1.8, endZ = target.z;
+            const startX = observer.x, startY = (observer.y || 0) + 2.2, startZ = observer.z;
+            const endX = target.x, endY = (target.y || 0) + 1.9, endZ = target.z;
 
             // 1. Kiểm tra màn khói ngụy trang 81mm chặn tầm nhìn
             if (typeof isLineBlockedBySmoke === 'function' && isLineBlockedBySmoke(startX, startZ, endX, endZ)) {
@@ -30593,10 +30651,11 @@ function createHouseWindowEmissiveTexture() {
             }
 
             const dist = Math.hypot(endX - startX, endZ - startZ);
-            if (dist < 28) return true; // Cận chiến dưới 28m luôn thấy nhau
+            // Cận chiến trong vòng 48m ở cùng độ cao (như trên mặt sân Pháo Đài B hoặc Quảng Trường A) luôn thấy nhau!
+            if (dist < 48 && Math.abs(endY - startY) < 4.5) return true;
 
-            // 2. Quét dọc đường đạn mỗi 14m để kiểm tra Đồi núi & Công trình/Địa vật KHÔNG THỂ PHÁ HỦY chắn trước mặt
-            const steps = Math.min(28, Math.max(4, Math.floor(dist / 14)));
+            // 2. Quét dọc đường đạn kiểm tra địa hình đồi núi và các khối công trình BẤT KHẢ XÂM PHẠM
+            const steps = Math.min(24, Math.max(4, Math.floor(dist / 16)));
             for (let i = 1; i < steps; i++) {
                 const t = i / steps;
                 const sx = startX + (endX - startX) * t;
@@ -30604,13 +30663,14 @@ function createHouseWindowEmissiveTexture() {
                 const rayY = startY + (endY - startY) * t;
 
                 const groundH = getTerrainHeight(sx, sz, rayY);
-                if (rayY <= groundH + 0.15) return false;
+                if (rayY <= groundH + 0.12) return false;
 
-                // Kiểm tra các công trình & địa vật bất khả xâm phạm (!obs.destructible) nằm chắn đường đạn
                 const nearObs = getNearbyObstacles(sx, sz);
                 for (let o = 0; o < nearObs.length; o++) {
                     const obs = nearObs[o];
-                    if (obs.fallen || obs.destructible || obs.climbable) continue; // Vật phá hủy được thì cứ bắn xuyên qua!
+                    if (obs.fallen || obs.destructible || obs.climbable) continue;
+                    // Bỏ qua bệ hồ nước rộng 11.2m ở Quảng trường [A] (chỉ chặn đúng cột đồng ở tâm r = 2.2m)
+                    const effRadius = (Math.abs(obs.x - 18) < 2 && Math.abs(obs.z - (-92)) < 2 && obs.radius > 8) ? 2.2 : obs.radius;
                     const obsBaseY = obs.y !== undefined ? obs.y : groundH;
                     const obsTopY = obsBaseY + (obs.height || 5.0);
                     if (rayY < obsBaseY || rayY > obsTopY) continue;
@@ -30619,36 +30679,12 @@ function createHouseWindowEmissiveTexture() {
                         const dx = sx - obs.x, dz = sz - obs.z;
                         const lx = dx * obs.cosR - dz * obs.sinR;
                         const lz = dx * obs.sinR + dz * obs.cosR;
-                        if (Math.abs(lx) <= obs.halfW + 0.4 && Math.abs(lz) <= obs.halfD + 0.4) return false;
-                    } else if ((sx - obs.x) ** 2 + (sz - obs.z) ** 2 <= (obs.radius + 0.4) ** 2) {
+                        if (Math.abs(lx) <= obs.halfW && Math.abs(lz) <= obs.halfD) return false;
+                    } else if ((sx - obs.x) ** 2 + (sz - obs.z) ** 2 <= effRadius * effRadius) {
                         return false;
                     }
                 }
             }
-
-            // 3. Chỉ kiểm tra tường nhà còn nguyên vẹn chắn ngang đường đạn
-            if (typeof getNearbyWalls === 'function') {
-                const midX = (startX + endX) * 0.5, midZ = (startZ + endZ) * 0.5;
-                const nearWalls = getNearbyWalls(midX, midZ);
-                const lineDx = endX - startX, lineDz = endZ - startZ;
-                const lineLenSq = lineDx * lineDx + lineDz * lineDz;
-                for (let i = 0; i < nearWalls.length; i++) {
-                    const w = nearWalls[i];
-                    if (w.destroyed || (w.height || 2.0) < 2.5) continue;
-                    const t = Math.max(0.1, Math.min(0.9, ((w.x - startX) * lineDx + (w.z - startZ) * lineDz) / lineLenSq));
-                    const projX = startX + t * lineDx;
-                    const projZ = startZ + t * lineDz;
-                    const dSq = (w.x - projX) * (w.x - projX) + (w.z - projZ) * (w.z - projZ);
-                    const checkR = w.radius || 3.2;
-                    if (dSq < checkR * checkR) {
-                        const rayY = startY + t * (endY - startY);
-                        if (rayY < w.y + (w.height || 2.5) * 0.85) {
-                            return false;
-                        }
-                    }
-                }
-            }
-
             return true;
         }
 
@@ -30884,79 +30920,152 @@ function createHouseWindowEmissiveTexture() {
         }
 
         const activeBombDomes = [];
-        const _sharedBombDomeGeo = new THREE.SphereGeometry(1.0, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.52);
-        const _sharedBombStemGeo = new THREE.CylinderGeometry(0.45, 0.85, 1.0, 14, 1, true);
-        _sharedBombStemGeo.translate(0, 0.5, 0);
-        const _sharedBombCapGeo = new THREE.SphereGeometry(1.0, 18, 12);
-        _sharedBombCapGeo.scale(1.35, 0.62, 1.35);
+        const _sharedVaporHemisphereGeo = new THREE.SphereGeometry(1.0, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.5);
+        const _sharedCraggyLobeGeo = new THREE.DodecahedronGeometry(1.0, 1);
+        const _sharedDustTorusGeo = new THREE.TorusGeometry(1.0, 0.18, 10, 32);
+        _sharedDustTorusGeo.rotateX(Math.PI / 2);
 
         function spawnMegaBombDetonationFX(impactPos) {
             const group = new THREE.Group();
             group.position.copy(impactPos);
 
-            // 1. Vòm cầu lửa nhiệt áp khổng lồ (bán kính nở tới 38m, nhìn rõ từ khoảng cách 2500m)
-            const flashMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb, transparent: true, opacity: 0.96, side: THREE.DoubleSide, depthWrite: false });
-            const fireballMat = new THREE.MeshBasicMaterial({ color: 0xff5500, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false });
-            const smokeMat = new THREE.MeshLambertMaterial({ color: 0x1c1917, transparent: true, opacity: 0.90, depthWrite: false });
+            // 1. Vòm sương ngưng tụ siêu thanh (Wilson Condensation Dome - chớp nở cực nhanh trong 0.38s đầu)
+            const vaporMat = new THREE.MeshBasicMaterial({
+                color: 0xf8fafc, transparent: true, opacity: 0.78, side: THREE.DoubleSide, depthWrite: false
+            });
+            const vaporDome = new THREE.Mesh(_sharedVaporHemisphereGeo, vaporMat);
+            group.add(vaporDome);
 
-            const innerFlashDome = new THREE.Mesh(_sharedBombDomeGeo, flashMat);
-            const outerFireDome = new THREE.Mesh(_sharedBombDomeGeo, fireballMat);
-            const mushroomStem = new THREE.Mesh(_sharedBombStemGeo, smokeMat);
-            const mushroomCap = new THREE.Mesh(_sharedBombCapGeo, smokeMat);
-            mushroomCap.position.y = 2.0;
-
-            // Vòng sóng xung kích trắng sát mặt đất
-            const shockRingMat = new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false });
-            const shockRing = new THREE.Mesh(sharedShockRingGeo, shockRingMat);
+            // 2. Vòng sóng xung kích mặt đất kép + Vành bụi cuộn sát đất (Ground Dust Torus)
+            const shockMat = new THREE.MeshBasicMaterial({
+                color: 0xfef08a, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false
+            });
+            const shockRing = new THREE.Mesh(sharedShockRingGeo, shockMat);
             shockRing.position.y = 0.35;
 
-            group.add(innerFlashDome, outerFireDome, mushroomStem, mushroomCap, shockRing);
-            scene.add(group);
+            const dustSkirtMat = new THREE.MeshLambertMaterial({
+                color: 0x3b3129, transparent: true, opacity: 0.90, depthWrite: false
+            });
+            const dustSkirt = new THREE.Mesh(_sharedDustTorusGeo, dustSkirtMat);
+            dustSkirt.position.y = 1.6;
+            group.add(shockRing, dustSkirt);
 
+            // 3. Chùm 9 Khối Cầu Lửa & Khói Súp-Lơ Bất Đối Xứng Cuộn Trào (Thay thế hoàn toàn hình trụ + quả cầu cứng nhắc!)
+            const fireLobes = [];
+            const lobeConfigs = [
+                // Lõi chớp nhiệt tâm nổ
+                { ox: 0,    oz: 0,    targetH: 14, rBase: 7.5, rMax: 18.5, role: 'core',  rotSpd: 0.8 },
+                // 4 Thùy lửa cuộn tầng giữa
+                { ox: -4.2, oz: 2.8,  targetH: 24, rBase: 5.5, rMax: 15.0, role: 'fire',  rotSpd: -1.1 },
+                { ox: 4.5,  oz: -2.5, targetH: 26, rBase: 5.8, rMax: 15.5, role: 'fire',  rotSpd: 1.2 },
+                { ox: 2.2,  oz: 4.6,  targetH: 22, rBase: 5.2, rMax: 14.2, role: 'fire',  rotSpd: -0.9 },
+                { ox: -3.5, oz: -4.2, targetH: 25, rBase: 5.4, rMax: 14.8, role: 'fire',  rotSpd: 1.0 },
+                // 4 Búi mây khói súp-lơ cuộn vòm trên
+                { ox: 0,    oz: 0,    targetH: 42, rBase: 6.5, rMax: 21.0, role: 'crown', rotSpd: 0.5 },
+                { ox: -6.8, oz: -3.2, targetH: 36, rBase: 5.0, rMax: 16.5, role: 'crown', rotSpd: -0.7 },
+                { ox: 6.5,  oz: 3.8,  targetH: 37, rBase: 5.2, rMax: 16.8, role: 'crown', rotSpd: 0.6 },
+                { ox: 0.5,  oz: -6.5, targetH: 35, rBase: 4.8, rMax: 16.0, role: 'crown', rotSpd: -0.6 }
+            ];
+
+            lobeConfigs.forEach((cfg, idx) => {
+                const mat = new THREE.MeshBasicMaterial({
+                    color: cfg.role === 'core' ? 0xfffbeb : (cfg.role === 'fire' ? 0xff6600 : 0xff4500),
+                    transparent: true,
+                    opacity: 0.95,
+                    depthWrite: false
+                });
+                const mesh = new THREE.Mesh(_sharedCraggyLobeGeo, mat);
+                mesh.position.set(cfg.ox * 0.25, 2.0, cfg.oz * 0.25);
+                mesh.rotation.set(idx * 0.7, idx * 1.1, idx * 0.5);
+                group.add(mesh);
+                fireLobes.push({ mesh, mat, cfg, colorObj: new THREE.Color() });
+            });
+
+            scene.add(group);
             activeBombDomes.push({
-                group, innerFlashDome, outerFireDome, mushroomStem, mushroomCap, shockRing,
-                flashMat, fireballMat, smokeMat, shockRingMat,
-                age: 0, maxLife: 4.5
+                group,
+                vaporDome, vaporMat,
+                shockRing, shockMat,
+                dustSkirt, dustSkirtMat,
+                fireLobes,
+                age: 0,
+                maxLife: 4.8
             });
         }
 
         function updateMegaBombDetonationFX(dt) {
+            const cWhite  = _nukeTmpColorA.setHex(0xfffbeb);
+            const cOrange = _nukeTmpColorB.setHex(0xff5500);
+
             for (let i = activeBombDomes.length - 1; i >= 0; i--) {
                 const fx = activeBombDomes[i];
                 fx.age += dt;
                 if (fx.age >= fx.maxLife) {
                     scene.remove(fx.group);
-                    fx.flashMat.dispose();
-                    fx.fireballMat.dispose();
-                    fx.smokeMat.dispose();
-                    fx.shockRingMat.dispose();
+                    fx.vaporMat.dispose();
+                    fx.shockMat.dispose();
+                    fx.dustSkirtMat.dispose();
+                    fx.fireLobes.forEach(lb => lb.mat.dispose());
                     activeBombDomes.splice(i, 1);
                     continue;
                 }
+
                 const t = fx.age / fx.maxLife;
-                const fastExpand = Math.min(1.0, fx.age / 0.45);
-                const easeOut = 1.0 - Math.pow(1.0 - fastExpand, 3);
 
-                // Vòm cầu lửa nở vọt ra bán kính 36m trong 0.45s đầu
-                const domeR = 3.0 + easeOut * 34.0;
-                fx.innerFlashDome.scale.set(domeR * 0.75, domeR * 0.65, domeR * 0.75);
-                fx.outerFireDome.scale.set(domeR, domeR * 0.85, domeR);
-                fx.flashMat.opacity = Math.max(0, 1.0 - fx.age * 2.2);
-                fx.fireballMat.opacity = Math.max(0, 0.95 - Math.pow(t, 0.7) * 1.15);
+                // 1. Vòm ngưng tụ áp suất Wilson (bung ra 48m trong 0.38s đầu rồi tan biến)
+                if (fx.age < 0.38) {
+                    const vp = fx.age / 0.38;
+                    const vRad = 4.0 + Math.pow(vp, 0.55) * 44.0;
+                    fx.vaporDome.scale.set(vRad, vRad * 0.62, vRad);
+                    fx.vaporMat.opacity = (1.0 - vp) * 0.78;
+                } else {
+                    fx.vaporDome.visible = false;
+                }
 
-                // Cột khói nấm vươn cao 48m và giữ lại trên chiến trường
-                const cloudGrow = Math.min(1.0, fx.age / 2.2);
-                const smoothCloud = 1.0 - Math.pow(1.0 - cloudGrow, 2);
-                fx.mushroomStem.scale.set(7.5 + smoothCloud * 8.5, 4.0 + smoothCloud * 42.0, 7.5 + smoothCloud * 8.5);
-                const capR = 9.0 + smoothCloud * 18.5;
-                fx.mushroomCap.scale.set(capR, capR * 0.58, capR);
-                fx.mushroomCap.position.y = 4.0 + smoothCloud * 42.0;
-                fx.smokeMat.opacity = t < 0.55 ? 0.92 : Math.max(0, 0.92 * (1.0 - (t - 0.55) / 0.45));
-
-                // Sóng xung kích lan rộng tới 65m
-                const ringR = 2.0 + Math.pow(t, 0.55) * 65.0;
+                // 2. Sóng xung kích mặt đất & Vành bụi cuộn chân nấm
+                const ringR = 3.0 + Math.pow(t, 0.52) * 64.0;
                 fx.shockRing.scale.set(ringR, 1, ringR);
-                fx.shockRingMat.opacity = Math.max(0, (1.0 - t * 1.4) * 0.88);
+                fx.shockMat.opacity = Math.max(0, (1.0 - t * 1.55) * 0.92);
+
+                const skirtGrow = Math.min(1.0, fx.age / 1.8);
+                const skirtR = 5.0 + (1.0 - Math.pow(1.0 - skirtGrow, 2)) * 24.0;
+                fx.dustSkirt.scale.set(skirtR, skirtR, 1.5 + skirtGrow * 2.8);
+                fx.dustSkirtMat.opacity = t < 0.45 ? 0.88 : Math.max(0, 0.88 * (1.0 - (t - 0.45) / 0.55));
+
+                // 3. Cập nhật 9 khối cầu lửa & mây súp-lơ cuộn lên + nguội dần từ Trắng -> Cam -> Đỏ sẫm -> Khói đen
+                for (let k = 0; k < fx.fireLobes.length; k++) {
+                    const lb = fx.fireLobes[k];
+                    const cfg = lb.cfg;
+                    const riseP = Math.min(1.0, fx.age / (cfg.role === 'core' ? 1.1 : 2.6));
+                    const easeRise = 1.0 - Math.pow(1.0 - riseP, 2.2);
+
+                    const curR = cfg.rBase + easeRise * (cfg.rMax - cfg.rBase);
+                    lb.mesh.scale.set(curR * 1.12, curR * 0.84, curR * 1.08);
+                    lb.mesh.position.set(
+                        cfg.ox * easeRise,
+                        2.5 + easeRise * cfg.targetH,
+                        cfg.oz * easeRise
+                    );
+                    lb.mesh.rotation.x += cfg.rotSpd * dt;
+                    lb.mesh.rotation.z -= cfg.rotSpd * 0.7 * dt;
+
+                    // Chuyển màu nhiệt động học theo thời gian sống (Thermal Cooling Curve)
+                    if (fx.age < 0.22) {
+                        lb.mat.color.lerpColors(cWhite, cOrange, fx.age / 0.22);
+                        lb.mat.opacity = 0.98;
+                    } else if (fx.age < 1.15) {
+                        const coolT = (fx.age - 0.22) / 0.93;
+                        lb.colorObj.setHex(0xb91c1c); // Đỏ lửa sẫm
+                        lb.mat.color.lerpColors(cOrange, lb.colorObj, coolT);
+                        lb.mat.opacity = 0.94;
+                    } else {
+                        const sootT = Math.min(1.0, (fx.age - 1.15) / 1.1);
+                        const prevCol = lb.colorObj.setHex(0xb91c1c);
+                        const sootCol = _nukeTmpColorA.setHex(0x1c1917); // Khói muội than đen
+                        lb.mat.color.lerpColors(prevCol, sootCol, sootT);
+                        lb.mat.opacity = t < 0.55 ? 0.90 : Math.max(0, 0.90 * (1.0 - (t - 0.55) / 0.45));
+                    }
+                }
             }
         }
         window.spawnMegaBombDetonationFX = spawnMegaBombDetonationFX;
@@ -30977,11 +31086,13 @@ function createHouseWindowEmissiveTexture() {
                 if (fpsEl) fpsEl.textContent = `${fpsCounter}`;
             }
 
-            // Match Timer & Dynamic Random Weather Shift
-            matchTimeRemaining = Math.max(0, matchTimeRemaining - dt);
-            if (matchTimeRemaining <= 0) {
-                endBattle(allyTickets >= enemyTickets);
-                return;
+            // Match Timer & Dynamic Random Weather Shift (Khóa đếm ngược khi đã vào phân cảnh Hạt Nhân để không bị return sớm làm đơ Camera!)
+            if (!nukeSequenceActive && !matchEnded) {
+                matchTimeRemaining = Math.max(0, matchTimeRemaining - dt);
+                if (matchTimeRemaining <= 0) {
+                    endBattle(allyTickets >= enemyTickets);
+                    return;
+                }
             }
             weatherChangeTimer -= dt;
             if (weatherChangeTimer <= 0) {
@@ -31171,6 +31282,11 @@ function createHouseWindowEmissiveTexture() {
 
                             const distImpact = Math.hypot(u.x - hitPos.x, u.z - hitPos.z);
                             const isFriendlyArty = !!(st.attacker && u.team === st.attacker.team && !u.isPlayer);
+                            const artyOwner = st.attacker || playerTank;
+                            if (!isFriendlyArty && distImpact < 30.0 && artyOwner) {
+                                u.aiLastAttacker = artyOwner;
+                                if (artyOwner.isPlayer) u.lastDamagedByPlayerTime = performance.now();
+                            }
                             if (distImpact < 6.8 && !isFriendlyArty) {
                                 // 1. Vùng tâm nổ (< 6.8m): Sức ép Quá áp (Overpressure) xuyên nóc tiêu diệt ngay lập tức mọi thiết giáp!
                                 handleVehicleDestruction(u, st.attacker || playerTank, true, "PHÁO BINH 155MM HE");
@@ -32383,7 +32499,35 @@ function createHouseWindowEmissiveTexture() {
                         }
                     }
 
-                    ai.speed += (desiredSpeed - ai.speed) * Math.min(1, ai.spec.accelRate * 1.45 * dt);
+                    // 1. Áp dụng đúng độ dốc địa hình (Slope Grade) & Độ bám đường thời tiết (Weather Grip) giống hệt Người chơi!
+                    const aiFwdX = Math.sin(ai.hullYaw), aiFwdZ = Math.cos(ai.hullYaw);
+                    const aiHNow = aiGroundY;
+                    const aiHAhead = getTerrainHeight(ai.x + aiFwdX * 3.0, ai.z + aiFwdZ * 3.0, ai.y);
+                    const aiSlopeGrade = (aiHAhead - aiHNow) / 3.0;
+                    const moveSlopeGrade = desiredSpeed >= 0 ? aiSlopeGrade : -aiSlopeGrade;
+                    const aiSlopeFactor = Math.max(0.45, Math.min(1.15, 1.0 - Math.max(0, moveSlopeGrade) * 0.75));
+                    const weatherGrip = currentWeatherConfig.gripMult || 1.0;
+
+                    // Giới hạn tốc độ lùi tối đa của xe tăng AI ở mức thực tế (-35% tốc độ tiến)
+                    if (desiredSpeed < 0) {
+                        desiredSpeed = Math.max(-ai.spec.maxSpeed * 0.35, desiredSpeed);
+                    }
+                    desiredSpeed *= aiSlopeFactor * weatherGrip;
+
+                    // 2. Độ trễ Hộp số khi chuyển từ Tiến sang Lùi (hoặc ngược lại): Phải phanh về 0 và dừng 0.48s để sang số!
+                    if ((ai.speed > 0.6 && desiredSpeed < -0.2) || (ai.speed < -0.6 && desiredSpeed > 0.2)) {
+                        ai.gearShiftDelay = 0.48;
+                        const brakeDecel = ai.spec.accelRate * 2.8 * weatherGrip;
+                        if (ai.speed > 0) ai.speed = Math.max(0, ai.speed - brakeDecel * dt);
+                        else ai.speed = Math.min(0, ai.speed + brakeDecel * dt);
+                    } else if ((ai.gearShiftDelay || 0) > 0) {
+                        ai.gearShiftDelay -= dt;
+                        ai.speed *= Math.max(0, 1 - 8.0 * dt);
+                    } else {
+                        const accelRate = (Math.abs(desiredSpeed) > Math.abs(ai.speed)) ? (ai.spec.accelRate * 0.95) : (ai.spec.accelRate * 2.2);
+                        const gravPull = -aiSlopeGrade * 3.8;
+                        ai.speed += ((desiredSpeed - ai.speed) * Math.min(1, accelRate * dt)) + (desiredSpeed !== 0 ? gravPull * dt * 0.35 : 0);
+                    }
 
                     let nextX = Math.max(-MAP_HALF_SIZE, Math.min(MAP_HALF_SIZE, ai.x + Math.sin(ai.hullYaw) * ai.speed * dt));
                     let nextZ = Math.max(-MAP_HALF_SIZE, Math.min(MAP_HALF_SIZE, ai.z + Math.cos(ai.hullYaw) * ai.speed * dt));
@@ -32532,9 +32676,10 @@ function createHouseWindowEmissiveTexture() {
                         const { pos: mPos, dir: barrelWorldDir } = ai.getMuzzleWorldData();
                         const toTargetDir = aimPt.clone().sub(mPos).normalize();
                         const alignDot = barrelWorldDir.dot(toTargetDir);
+                        // Nới góc bóp cò hợp lý khi đấu pháo tầm gần (< 180m) hoặc trên địa hình dốc tại Pháo Đài [B]
                         const minRequiredDot = ai.aiPanicTimer > 0
-                            ? 0.955
-                            : (realDistToEnemy < 140 ? 0.965 : (realDistToEnemy < 380 ? 0.982 : 0.990));
+                            ? 0.935
+                            : (realDistToEnemy < 95 ? 0.920 : (realDistToEnemy < 240 ? 0.962 : 0.984));
 
                         if (alignDot >= minRequiredDot && hasClearTacticalLineOfSight(ai, closestEnemy)) {
                             firePrimaryWeapon(ai, aiShellChoice);
@@ -32763,6 +32908,16 @@ function createHouseWindowEmissiveTexture() {
                     }
                 }
 
+                // Áp dụng cùng giới hạn trần bay (465m) và giảm tốc độ khi leo cao / hỏng động cơ giống hệt máy bay Người chơi!
+                if (jet.y > 455.0) {
+                    const overAlt = (jet.y - 455.0) / 55.0;
+                    jet.airPitch = Math.min(jet.airPitch, -0.22 - overAlt * 0.25);
+                    jet.speed = Math.max(38, jet.speed - 18 * dt);
+                }
+                const aiEngMult = ((jet.airModules.leftEngine ? 1 : 0) + (jet.airModules.rightEngine ? 1 : 0)) === 2 ? 1.0 : 0.62;
+                const climbPenalty = Math.max(0, Math.sin(jet.airPitch)) * 14.0;
+                jet.speed = Math.max(36, (jet.speed * aiEngMult) - climbPenalty * dt);
+
                 const { dir: jDir } = jet.getMuzzleWorldData();
                 jet.x += jDir.x * jet.speed * dt;
                 jet.y += jDir.y * jet.speed * dt;
@@ -32842,7 +32997,8 @@ function createHouseWindowEmissiveTexture() {
                         }
 
                         // Kích hoạt Nổ Cận Đích (5.5m cho người chơi, 3.6m cho AI)
-                        const proxyRadius = sh.shooter.isPlayer ? 5.5 : 3.6;
+                        // Kích hoạt Nổ Cận Đích (Nâng lên 6.8m cho người chơi để bù sai số góc nhìn 3D, giữ 3.5m cho AI)
+                        const proxyRadius = sh.shooter.isPlayer ? 6.8 : 3.5;
                         if (nearestJet && minJetDist <= proxyRadius) {
                             evaluateAircraftHit(sh, nearestJet, new THREE.Vector3(nearestJet.x, nearestJet.y, nearestJet.z), {
                                 zone: 'AIRCRAFT_PROXY',
@@ -32853,21 +33009,22 @@ function createHouseWindowEmissiveTexture() {
                             continue;
                         }
 
-                        // Chỉ tự bám mục tiêu khi đã lái tên lửa vào rất gần (<= 46m với người chơi, <= 28m với AI) và nằm trong góc hẹp 18°
-                        const terminalLockRange = sh.shooter.isPlayer ? 46.0 : 28.0;
+                        // Mở rộng tầm tự động đón đầu giai đoạn cuối cho Người chơi lên 95m (góc nón đầu dò 26 độ)
+                        const terminalLockRange = sh.shooter.isPlayer ? 95.0 : 26.0;
                         const curMissileDir = sh.vel.clone().normalize();
                         const toJetDir = nearestJet ? new THREE.Vector3(nearestJet.x - sh.pos.x, nearestJet.y - sh.pos.y, nearestJet.z - sh.pos.z).normalize() : null;
-                        const inSeekerCone = toJetDir ? (curMissileDir.dot(toJetDir) > 0.95) : false;
+                        const inSeekerCone = toJetDir ? (curMissileDir.dot(toJetDir) > (sh.shooter.isPlayer ? 0.89 : 0.95)) : false;
 
                         if (!sh.decoyedByFlares && nearestJet && minJetDist <= terminalLockRange && inSeekerCone) {
                             isTerminalLock = true;
                             sh.homingTarget = nearestJet;
                             const { dir: tDir } = nearestJet.getMuzzleWorldData();
                             const tIntercept = minJetDist / Math.max(200, sh.config.speed);
+                            const leadMult = sh.shooter.isPlayer ? 0.82 : 0.62;
                             targetPoint = new THREE.Vector3(
-                                nearestJet.x + tDir.x * nearestJet.speed * tIntercept * 0.65,
-                                nearestJet.y + tDir.y * nearestJet.speed * tIntercept * 0.65,
-                                nearestJet.z + tDir.z * nearestJet.speed * tIntercept * 0.65
+                                nearestJet.x + tDir.x * nearestJet.speed * tIntercept * leadMult,
+                                nearestJet.y + tDir.y * nearestJet.speed * tIntercept * leadMult,
+                                nearestJet.z + tDir.z * nearestJet.speed * tIntercept * leadMult
                             );
                         } else if (sh.lockedWorldPos) {
                             targetPoint = sh.lockedWorldPos;
@@ -32877,13 +33034,23 @@ function createHouseWindowEmissiveTexture() {
                                 Math.sin(camPitch),
                                 Math.cos(camYaw) * Math.cos(camPitch)
                             ).normalize();
-                            const flightDist = Math.max(80, sh.pos.distanceTo(camera.position) + 120);
+                            const flightDist = Math.max(85, sh.pos.distanceTo(camera.position) + 135);
                             targetPoint = camera.position.clone().addScaledVector(lookDir, flightDist);
+                            // Hỗ trợ dẫn đường bán tự động nhẹ (CLOS Assist) khi người chơi giữ tâm ngắm gần vòng đón bắn của máy bay
+                            if (!sh.decoyedByFlares && nearestJet && toJetDir && lookDir.dot(toJetDir) > 0.965) {
+                                const { dir: jDir } = nearestJet.getMuzzleWorldData();
+                                const tInt = minJetDist / Math.max(200, sh.config.speed);
+                                const radarLeadPt = new THREE.Vector3(
+                                    nearestJet.x + jDir.x * nearestJet.speed * tInt * 0.78,
+                                    nearestJet.y + jDir.y * nearestJet.speed * tInt * 0.78,
+                                    nearestJet.z + jDir.z * nearestJet.speed * tInt * 0.78
+                                );
+                                targetPoint.lerp(radarLeadPt, 0.42);
+                            }
                         } else if (!sh.shooter.isPlayer && nearestJet) {
-                            // AI dẫn bắn SAM có sai số dao động lớn (35m - 55m) nên máy bay lượn nhẹ sẽ né được!
                             if (sh._aiErrSeed === undefined) sh._aiErrSeed = Math.random() * 10;
-                            const wobble = Math.sin(sh.age * 3.8 + sh._aiErrSeed) * 42.0;
-                            const wobbleY = Math.cos(sh.age * 2.9 + sh._aiErrSeed) * 24.0;
+                            const wobble = Math.sin(sh.age * 3.8 + sh._aiErrSeed) * 44.0;
+                            const wobbleY = Math.cos(sh.age * 2.9 + sh._aiErrSeed) * 25.0;
                             targetPoint = new THREE.Vector3(nearestJet.x + wobble, nearestJet.y + wobbleY, nearestJet.z - wobble);
                         }
                     } else {
@@ -32902,7 +33069,7 @@ function createHouseWindowEmissiveTexture() {
                         const currentDir = sh.vel.clone().normalize();
                         const isSAM = sh.config.type === 'SAM';
                         const turnAgility = isSAM
-                            ? (isTerminalLock ? (sh.shooter.isPlayer ? 5.8 : 2.1) : (sh.shooter.isPlayer ? 3.2 : 1.45))
+                            ? (isTerminalLock ? (sh.shooter.isPlayer ? 7.4 : 2.0) : (sh.shooter.isPlayer ? 4.4 : 1.4))
                             : (isTerminalLock ? (sh.shooter.isPlayer ? 15.5 : 4.2) : (sh.shooter.isPlayer ? 7.5 : 2.8));
                         if (currentDir.dot(desiredDir) > 0.15) {
                             currentDir.lerp(desiredDir, Math.min(1, dt * turnAgility)).normalize();
@@ -33564,12 +33731,14 @@ function createHouseWindowEmissiveTexture() {
             const remainingAllies = aiUnits.filter(u => u.team === 'ally' && (!u.permanentlyEliminated || u.alive)).length +
                 ((GROUND_VEHICLE_INDICES.length - playerUsedVehicles.size > 0 || (playerTank && playerTank.alive)) ? 1 : 0);
 
-            if (enemyTickets <= 0 || remainingEnemies === 0) {
-                enemyTickets = 0;
-                endBattle(true);
-            } else if (allyTickets <= 0 || remainingAllies === 0) {
-                allyTickets = 0;
-                endBattle(false);
+            if (!nukeSequenceActive && !matchEnded) {
+                if (enemyTickets <= 0 || remainingEnemies === 0) {
+                    enemyTickets = 0;
+                    endBattle(true);
+                } else if (allyTickets <= 0 || remainingAllies === 0) {
+                    allyTickets = 0;
+                    endBattle(false);
+                }
             }
         }
         let minimapFrameCounter = 0;
@@ -37219,9 +37388,28 @@ function createHouseWindowEmissiveTexture() {
                         for (let i = 0; i < aiUnits.length; i++) {
                             if (aiUnits[i].turretBlownOff) aiUnits[i].updateTransform(dt);
                         }
+                        // Tiếp tục cho đạn đang bay trên không di chuyển tới khi chạm đất (không bị treo lơ lửng)
+                        for (let i = activeShells.length - 1; i >= 0; i--) {
+                            const sh = activeShells[i];
+                            sh.age += dt;
+                            sh.vel.y -= (sh.config.gravity || 9.8) * dt;
+                            sh.pos.addScaledVector(sh.vel, dt);
+                            sh.mesh.position.copy(sh.pos);
+                            if (sh.age > 8.0 || sh.pos.y <= getTerrainHeight(sh.pos.x, sh.pos.z, sh.pos.y)) {
+                                scene.remove(sh.mesh);
+                                activeShells.splice(i, 1);
+                            }
+                        }
+                        // Tiếp tục cho cả máy bay AI đang bay (jet.alive) lẫn máy bay đang rơi (jet.isCrashing) di chuyển mượt mà
                         for (let i = 0; i < aiAirUnits.length; i++) {
                             const jet = aiAirUnits[i];
-                            if (jet.isCrashing) {
+                            if (jet.alive) {
+                                const { dir: jDir } = jet.getMuzzleWorldData();
+                                jet.x += jDir.x * jet.speed * dt;
+                                jet.y += jDir.y * jet.speed * dt;
+                                jet.z += jDir.z * jet.speed * dt;
+                                jet.updateTransform(dt);
+                            } else if (jet.isCrashing) {
                                 jet.crashTimer += dt;
                                 jet.crashVel.y = Math.max(-54.0, jet.crashVel.y - 19.5 * dt);
                                 jet.x += jet.crashVel.x * dt;
@@ -37243,7 +37431,8 @@ function createHouseWindowEmissiveTexture() {
                 }
 
                 // [SỬA LỖI ĐƠ MINIMAP]: Vẽ lại Minimap mỗi 2 frame/lần để vừa mượt 60FPS vừa cập nhật liên tục
-                minimapFrameCounter = (minimapFrameCounter + 1) % 2;
+                // Ở chế độ Máy Yếu, vẽ Minimap mỗi 5 frame/lần thay vì 2 frame/lần để ưu tiên 100% CPU cho vòng lặp 3D
+                minimapFrameCounter = (minimapFrameCounter + 1) % (window.IS_POTATO_MODE ? 5 : 2);
                 if (minimapFrameCounter === 0) {
                     renderTacticalMinimap();
                 }
@@ -37765,7 +37954,13 @@ function createHouseWindowEmissiveTexture() {
             refreshHangarCardsUI();
         }
 
-        window.onload = function () {
+        window.onload = function () {
+            const gfxTxt = document.getElementById('gfx-mode-btn-txt');
+            if (gfxTxt) {
+                gfxTxt.textContent = window.IS_POTATO_MODE
+                    ? (window.currentGameLang === 'en' ? '🥔 GFX: POTATO (FAST)' : '🥔 ĐỒ HỌA: MÁY YẾU')
+                    : (window.currentGameLang === 'en' ? '✨ GFX: HIGH' : '✨ ĐỒ HỌA: CAO');
+            }
             const barFill = document.getElementById('loading-bar-fill');
             const subStatus = document.getElementById('loading-sub-status');
             if (barFill) barFill.style.width = '75%';
@@ -37792,6 +37987,147 @@ function createHouseWindowEmissiveTexture() {
                 }, 260);
             }, 180);
         };
+
+            // ════════════════════════════════════════════════════════════════════════════
+        // MODULE GIẢM LAG CỰC ĐOAN ĐỘC LẬP (ZERO-INTRUSION ULTRA POTATO BOOSTER)
+        // Bật/Tắt tức thì bằng nút bấm hoặc phím [F9] - Không chạm vào logic game gốc!
+        // ════════════════════════════════════════════════════════════════════════════
+        (function initUltraPotatoBooster() {
+            window.isUltraPotatoMode = false;
+            let _origShadowNeedsUpdateDescriptor = null;
+
+            window.toggleUltraPotatoMode = function(forceState) {
+                window.isUltraPotatoMode = typeof forceState === 'boolean' ? forceState : !window.isUltraPotatoMode;
+                const isPotato = window.isUltraPotatoMode;
+
+                try { localStorage.setItem('st_ultra_potato', isPotato ? '1' : '0'); } catch (e) {}
+
+                // 1. Ngắt ngay lập tức CSS backdrop-filter: blur() trên toàn bộ giao diện
+                document.body.classList.toggle('potato-mode', isPotato);
+
+                // 2. Hạ độ phân giải nội bộ WebGL xuống 0.58x & tắt ToneMapping nặng trên GPU yếu
+                if (typeof renderer !== 'undefined' && renderer) {
+                    renderer.setPixelRatio(isPotato ? 0.58 : Math.min(window.devicePixelRatio || 1, 1.0));
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                    renderer.toneMapping = isPotato ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+
+                    // 3. Khóa hoàn toàn việc vẽ lại ShadowMap mỗi khi xoay chuột ở Menu hoặc xoay tháp pháo!
+                    renderer.shadowMap.enabled = !isPotato;
+                    renderer.shadowMap.autoUpdate = false;
+                    if (isPotato && sunLight && sunLight.shadow && sunLight.shadow.map) {
+                        sunLight.castShadow = false;
+                    } else if (!isPotato && typeof sunLight !== 'undefined') {
+                        sunLight.castShadow = true;
+                        renderer.shadowMap.needsUpdate = true;
+                    }
+                    // Biên dịch lại vật liệu 1 lần để gỡ bỏ tính toán bóng đổ khỏi Shader
+                    scene.traverse(obj => {
+                        if (obj.isMesh && obj.material) {
+                            if (Array.isArray(obj.material)) obj.material.forEach(m => m.needsUpdate = true);
+                            else obj.material.needsUpdate = true;
+                        }
+                    });
+                }
+
+                // 4. Thu gọn tầm nhìn Camera (camera.far) để khi xoay tháp pháo không phải render cảnh vật cách 18km
+                if (typeof camera !== 'undefined' && camera) {
+                    camera.far = isPotato ? 780 : 18000;
+                    camera.updateProjectionMatrix();
+                }
+
+                // 5. Ẩn tạm thời các lớp trang trí đồ họa (Cỏ, Hoa, Bụi cây, Bầu trời 3D, Núi viễn cảnh)
+                // -> KHÔNG HỀ ĐỤNG ĐẾN obstacles HAY destructibleWalls NÊN VẬT LÝ & VA CHẠM GIỮ NGUYÊN 100%!
+                const toggleDecor = (obj, vis) => { if (obj) obj.visible = vis; };
+                toggleDecor(typeof outerWorldMesh !== 'undefined' ? outerWorldMesh : null, !isPotato);
+                toggleDecor(typeof grassInstanced !== 'undefined' ? grassInstanced : null, !isPotato);
+                toggleDecor(typeof flowerInstanced !== 'undefined' ? flowerInstanced : null, !isPotato);
+                toggleDecor(typeof shrubInstanced !== 'undefined' ? shrubInstanced : null, !isPotato);
+                toggleDecor(typeof cirrusLayerMesh !== 'undefined' ? cirrusLayerMesh : null, !isPotato);
+                toggleDecor(typeof cumulonimbusMesh !== 'undefined' ? cumulonimbusMesh : null, !isPotato);
+                toggleDecor(typeof starFieldPoints !== 'undefined' ? starFieldPoints : null, !isPotato);
+                toggleDecor(window._ripBushInst, !isPotato);
+
+                if (typeof foliageChunksList !== 'undefined' && Array.isArray(foliageChunksList)) {
+                    for (let i = 0; i < foliageChunksList.length; i++) {
+                        if (foliageChunksList[i] && foliageChunksList[i].mesh) {
+                            foliageChunksList[i].mesh.visible = !isPotato;
+                        }
+                    }
+                }
+
+                // 6. Tắt Pool 8 đèn PointLight động ban đêm (giữ lại đèn mặt trời & bán cầu nhẹ)
+                if (typeof dynamicPointLightPool !== 'undefined' && Array.isArray(dynamicPointLightPool)) {
+                    dynamicPointLightPool.forEach(pl => { if (pl) pl.visible = !isPotato; });
+                }
+
+                // 7. Cập nhật nhãn nút bấm trên Menu
+                const btnTxt = document.getElementById('potato-mode-btn-txt');
+                const btnEl = document.getElementById('potato-mode-btn');
+                if (btnTxt) {
+                    const isEn = (window.currentGameLang === 'en');
+                    btnTxt.textContent = isPotato
+                        ? (isEn ? '⚡ LOW SPEC: ON' : '⚡ GIẢM LAG: BẬT')
+                        : (isEn ? '⚡ LOW SPEC: OFF' : '⚡ GIẢM LAG: TẮT');
+                }
+                if (btnEl) {
+                    btnEl.className = isPotato
+                        ? "px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 border border-emerald-300 flex items-center gap-1 transition font-extrabold shadow-[0_0_12px_rgba(16,185,129,0.5)]"
+                        : "px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 flex items-center gap-1 transition font-bold";
+                }
+
+                if (typeof soundFX !== 'undefined' && soundFX.playRadioBeep) soundFX.playRadioBeep();
+            };
+
+            // Ngăn chặn vòng lặp animateLoop ép vẽ lại bóng đổ mỗi khi xoay chuột ở Menu nếu đang bật Giảm Lag
+            if (typeof renderer !== 'undefined' && renderer && renderer.shadowMap) {
+                let _shadowUpdateFlag = false;
+                Object.defineProperty(renderer.shadowMap, 'needsUpdate', {
+                    get() { return window.isUltraPotatoMode ? false : _shadowUpdateFlag; },
+                    set(val) { _shadowUpdateFlag = window.isUltraPotatoMode ? false : Boolean(val); }
+                });
+            }
+
+            // Bọc nhẹ hàm updateDynamicMapLights và updateTrampledFoliage để bỏ qua tính toán phụ khi bật Giảm Lag
+            if (typeof updateDynamicMapLights === 'function') {
+                const _origLights = updateDynamicMapLights;
+                updateDynamicMapLights = function(dt) {
+                    if (window.isUltraPotatoMode) return;
+                    return _origLights(dt);
+                };
+            }
+            if (typeof updateTrampledFoliage === 'function') {
+                const _origTrample = updateTrampledFoliage;
+                updateTrampledFoliage = function(dt) {
+                    if (window.isUltraPotatoMode) return;
+                    return _origTrample(dt);
+                };
+            }
+
+            // Phím tắt [F9] để Bật/Tắt chế độ Giảm Lag bất kỳ lúc nào ngay cả khi đang trong trận!
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'F9') {
+                    e.preventDefault();
+                    window.toggleUltraPotatoMode();
+                    if (typeof triggerBattleBanner === 'function' && gameActive) {
+                        triggerBattleBanner(
+                            window.isUltraPotatoMode ? "ĐÃ BẬT CHẾ ĐỘ GIẢM LAG [F9]" : "ĐÃ KHÔI PHỤC ĐỒ HỌA ĐẦY ĐỦ [F9]",
+                            "",
+                            "text-emerald-400"
+                        );
+                    }
+                }
+            });
+
+            // Tự động khôi phục lựa chọn của máy yếu từ lần chơi trước
+            try {
+                const saved = localStorage.getItem('st_ultra_potato');
+                const isWeakPC = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+                                 (navigator.deviceMemory && navigator.deviceMemory <= 4);
+                if (saved === '1' || (saved === null && isWeakPC)) {
+                    setTimeout(() => window.toggleUltraPotatoMode(true), 100);
+                }
+            } catch (e) {}
+        })();
 
     </script>
 </body>
