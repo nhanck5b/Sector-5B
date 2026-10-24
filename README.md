@@ -10,7 +10,9 @@ Mình làm kỹ thuật mà thật sự không rành về code hay lập trình 
 
 Mà mình cũng ưng mấy game như War Thunder, nên có bắt chước thử làm 1 cái game
 
-Cảm ơn Gehihi 4 Argon nhiều, không biết gì vẫn ra được con game ni :]]]
+Làm game ni để test giới hạn Gehihi 4 với giới hạn của mình khi làm việc với hắn tới đâu :v
+
+Cảm ơn Gehihi 4 Argon, không biết gì vẫn ra được con game ni :]]]
 
 ## Một số hình ảnh trong game
 
