@@ -2,7 +2,7 @@
 
 Game bắn xe tăng và hiệp đồng binh chủng 3D chạy thẳng trên trình duyệt. Toàn bộ game chỉ nằm trong đúng 1 file `.html` duy nhất, không dùng bất kỳ file hình ảnh, âm thanh hay mô hình tải sẵn nào từ bên ngoài.
 
-[Chơi thử trực tiếp (Live Demo)](#)
+[Chơi thử trực tiếp (Live Demo)]([#](https://nhanck5b.github.io/Sector-5B/))
 
 ## Đôi lời về dự án
 
