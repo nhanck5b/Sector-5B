@@ -312,9 +312,9 @@
             <!-- Nút chuyển nhanh sang Chế độ Máy Yếu ngay trong lúc Loading -->
             <!-- Thanh chọn nhanh 3 mức đồ họa ngay trên màn hình Loading -->
             <div class="mt-4 flex items-center gap-1.5 pointer-events-auto mono-font text-[9px]">
-                <button onclick="if(window.setGraphicsQualityMode) window.setGraphicsQualityMode('HIGH');" class="px-2.5 py-1 rounded bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-300 border border-slate-700 font-bold transition">✨ CAO</button>
-                <button onclick="if(window.setGraphicsQualityMode) window.setGraphicsQualityMode('POTATO');" class="px-2.5 py-1 rounded bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 font-bold transition">⚡ MÁY YẾU</button>
-                <button onclick="if(window.setGraphicsQualityMode) window.setGraphicsQualityMode('ULTRA_POTATO');" class="px-2.5 py-1 rounded bg-slate-900 hover:bg-emerald-500 hover:text-slate-950 text-emerald-300 border border-emerald-400/40 font-bold transition">🥔 SIÊU YẾU</button>
+                <button id="loading-gfx-high" onclick="if(window.setGraphicsQualityMode) window.setGraphicsQualityMode('HIGH');" class="px-2.5 py-1 rounded bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-300 border border-slate-700 font-bold transition">✨ CAO</button>
+                <button id="loading-gfx-potato" onclick="if(window.setGraphicsQualityMode) window.setGraphicsQualityMode('POTATO');" class="px-2.5 py-1 rounded bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-400/40 font-bold transition">⚡ MÁY YẾU</button>
+                <button id="loading-gfx-ultra" onclick="if(window.setGraphicsQualityMode) window.setGraphicsQualityMode('ULTRA_POTATO');" class="px-2.5 py-1 rounded bg-slate-900 hover:bg-emerald-500 hover:text-slate-950 text-emerald-300 border border-emerald-400/40 font-bold transition">🥔 SIÊU YẾU</button>
             </div>
         </div>
 
@@ -3053,13 +3053,12 @@
         let isHUDHidden = false;
 
         // ═══ HỆ THỐNG 3 CHẾ ĐỘ ĐỒ HỌA: HIGH (CAO) / POTATO (MÁY YẾU) / ULTRA_POTATO (SIÊU YẾU CỰC ĐOAN) ═══
-        const savedGfxPref = (() => {
+                const savedGfxPref = (() => {
             try { return localStorage.getItem('st_gfx_mode'); } catch (e) { return null; }
         })();
-        const isWeakHardwareDetected = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
-                                       (navigator.deviceMemory && navigator.deviceMemory <= 4);
 
-        window.GFX_MODE = savedGfxPref || (isWeakHardwareDetected ? 'POTATO' : 'HIGH');
+        // Mặc định luôn khởi động ở đồ họa HIGH (Cao) trừ khi người chơi chủ động chọn cấu hình khác
+        window.GFX_MODE = savedGfxPref || 'HIGH';
         window.IS_ULTRA_POTATO = (window.GFX_MODE === 'ULTRA_POTATO');
         window.IS_POTATO_MODE = (window.GFX_MODE === 'POTATO' || window.IS_ULTRA_POTATO);
 
@@ -15439,7 +15438,7 @@ function createHouseWindowEmissiveTexture() {
         // HỆ THỐNG CỐT TRUYỆN "SECTOR 5B" (PHIÊN BẢN ĐỒ HỌA CHI TIẾT CAO & ĐA NGÔN NGỮ)
         // ════════════════════════════════════════════════════════════════════════════
         const _loreTextureCache = {};
-        window.currentGameLang = window.currentGameLang || 'vi';
+        window.currentGameLang = (() => { try { return localStorage.getItem('st_game_lang'); } catch (e) { return null; } })() || window.currentGameLang || 'vi';
 
         // Hàm phụ trợ vẽ Quốc Kỳ của Liên Bang Bắc Vực & Cộng Hòa Nam Hiệp
         function drawFactionMiniFlag(ctx, x, y, w, h, isNorth) {
@@ -23355,27 +23354,43 @@ function createHouseWindowEmissiveTexture() {
                         podGrp.add(podBox, podCowl, rearBand);
                         targetWingGrp.add(podGrp);
                     } else {
-                        // Ô trong cùng: Siêu bom 500kg (FAB-500 / Mk-84) thân hộp bát giác vuông + mũi bậc thang + đai vàng HE + đuôi hộp vuông
+                        // Ô trong cùng: Siêu bom phá mảnh FAB-500 M-62 chi tiết cao (Có vòng cắt gió Kopfring đầu mũi, 2 đai vàng HE, tai treo & đuôi vây 8 cánh)
                         const bombGrp = new THREE.Group();
-                        bombGrp.position.set(px, pyY - 0.46, 0.45);
-                        const bMainBox = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.46, 1.62), oliveBombMat);
-                        const bSideChamfer = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 1.56), oliveBombMat);
-                        bSideChamfer.rotation.z = Math.PI / 4;
-                        const bNose1 = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.36), oliveBombMat);
-                        bNose1.position.z = 0.96;
-                        const bNoseFuze = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.26), noseBronzeMat);
-                        bNoseFuze.position.z = 1.24;
-                        const heBand = new THREE.Mesh(new THREE.BoxGeometry(0.49, 0.49, 0.18), noseBronzeMat);
-                        heBand.position.z = 0.58;
-                        const bTailStem = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.46), oliveBombMat);
-                        bTailStem.position.z = -1.02;
-                        const finH = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.045, 0.44), steelMat);
-                        finH.position.z = -1.06;
-                        const finV = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.72, 0.44), steelMat);
-                        finV.position.z = -1.06;
-                        const tailBoxRing = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.56, 0.24), darkMat);
-                        tailBoxRing.position.z = -1.16;
-                        bombGrp.add(bMainBox, bSideChamfer, bNose1, bNoseFuze, heBand, bTailStem, finH, finV, tailBoxRing);
+                        bombGrp.position.set(px, pyY - 0.48, 0.45);
+
+                        const bBody = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 1.35, 12), oliveBombMat);
+                        bBody.rotation.x = Math.PI / 2;
+                        const bOgive = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.24, 0.45, 12), oliveBombMat);
+                        bOgive.rotation.x = Math.PI / 2;
+                        bOgive.position.z = 0.90;
+                        // Vòng thép ổn định sóng xung kích đầu mũi (Kopfring đặc trưng của FAB-500) & Ngòi nổ đồng
+                        const kopfRing = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.024, 6, 12), steelMat);
+                        kopfRing.position.z = 1.15;
+                        const bFuze = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.09, 0.22, 8), noseBronzeMat);
+                        bFuze.rotation.x = Math.PI / 2;
+                        bFuze.position.z = 1.20;
+
+                        // 2 Đai vàng nhận diện bom nổ mạnh (HE Ordnance Stripes)
+                        const heBand1 = new THREE.Mesh(new THREE.CylinderGeometry(0.246, 0.246, 0.12, 12), noseBronzeMat);
+                        heBand1.rotation.x = Math.PI / 2;
+                        heBand1.position.z = 0.52;
+                        const heBand2 = heBand1.clone();
+                        heBand2.position.z = 0.28;
+
+                        // Phần côn đuôi, Vòng đai trụ bảo vệ cánh đuôi (Tail Shroud Ring) & 4 cánh vây chữ thập
+                        const bTailCone = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.14, 0.52, 12), oliveBombMat);
+                        bTailCone.rotation.x = Math.PI / 2;
+                        bTailCone.position.z = -0.92;
+                        const tailShroud = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.38, 12, 1, true), steelMat);
+                        tailShroud.rotation.x = Math.PI / 2;
+                        tailShroud.position.z = -1.08;
+                        for (let f = 0; f < 4; f++) {
+                            const fin = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.032, 0.44), darkMat);
+                            fin.position.z = -1.04;
+                            fin.rotation.z = (f * Math.PI) / 4;
+                            bombGrp.add(fin);
+                        }
+                        bombGrp.add(bBody, bOgive, kopfRing, bFuze, heBand1, heBand2, bTailCone, tailShroud);
                         targetWingGrp.add(bombGrp);
                     }
                 });
@@ -25248,8 +25263,30 @@ function createHouseWindowEmissiveTexture() {
 
         const sharedTracerGeo = new THREE.CylinderGeometry(0.055, 0.055, 3.2, 6);
         sharedTracerGeo.rotateX(Math.PI / 2);
-        const sharedBombGeo = new THREE.CylinderGeometry(0.28, 0.36, 2.2, 8);
-        sharedBombGeo.rotateX(Math.PI / 2);
+        const sharedBombGeo = (function buildDetailedFAB500Geo() {
+            const body = new THREE.CylinderGeometry(0.32, 0.32, 1.55, 12);
+            body.rotateX(Math.PI / 2);
+            const ogive = new THREE.CylinderGeometry(0.16, 0.32, 0.55, 12);
+            ogive.rotateX(Math.PI / 2);
+            ogive.translate(0, 0, 1.05);
+            const fuze = new THREE.CylinderGeometry(0.05, 0.11, 0.28, 8);
+            fuze.rotateX(Math.PI / 2);
+            fuze.translate(0, 0, 1.44);
+            const kopfRing = new THREE.CylinderGeometry(0.21, 0.21, 0.06, 12);
+            kopfRing.rotateX(Math.PI / 2);
+            kopfRing.translate(0, 0, 1.36);
+            const tailCone = new THREE.CylinderGeometry(0.32, 0.18, 0.62, 12);
+            tailCone.rotateX(Math.PI / 2);
+            tailCone.translate(0, 0, -1.08);
+            const tailRing = new THREE.CylinderGeometry(0.36, 0.36, 0.42, 12);
+            tailRing.rotateX(Math.PI / 2);
+            tailRing.translate(0, 0, -1.25);
+            const fin1 = new THREE.BoxGeometry(0.76, 0.04, 0.52);
+            fin1.translate(0, 0, -1.20);
+            const fin2 = new THREE.BoxGeometry(0.04, 0.76, 0.52);
+            fin2.translate(0, 0, -1.20);
+            return mergeBufferGeometriesList([body, ogive, fuze, kopfRing, tailCone, tailRing, fin1, fin2]);
+        })();
 
         // Hình học Đạn Thanh Xuyên Dưới Cỡ APFSDS 3D (Mũi kim nhọn + Thân Dart + Cánh đuôi ổn định)
         const dartShaftGeo = new THREE.CylinderGeometry(0.032, 0.036, 2.6, 6);
@@ -28092,7 +28129,7 @@ function createHouseWindowEmissiveTexture() {
             startSmoothWeatherTransition(nextPreset, 0.6);
             const btnTxt = document.getElementById('spec-weather-btn-txt');
             if (btnTxt) btnTxt.textContent = nextPreset.name;
-            soundFX.playRadioBeep();
+            if (typeof soundFX !== 'undefined' && soundFX.playRadioBeep) soundFX.playRadioBeep();
         }
 
         function exitSpectatorToMainMenu() {
@@ -37265,7 +37302,7 @@ function createHouseWindowEmissiveTexture() {
             // Item 44: Quay chậm Slow-Motion (0.35x) trong 1.5 giây ngay khoảnh khắc quả bom hạt nhân chạm đất phát nổ
             const rawDt = Math.min(0.05, (now - lastFrameTime) / 1000);
             const isNukeFlashMoment = (typeof nukeSequenceActive !== 'undefined' && nukeSequenceActive && nukeDetonated && (nukeTimer - 24.0) < 1.5);
-            const dt = isNukeFlashMoment ? rawDt * 0.35 : rawDt;
+            let dt = isNukeFlashMoment ? rawDt * 0.35 : rawDt;
             lastFrameTime = now;
 
             // PHẦN 3: Cập nhật hệ thống Sóng Xung Kích Đa Tầng NukeShockwaveFX
@@ -37657,12 +37694,32 @@ function createHouseWindowEmissiveTexture() {
 
         function toggleGameLanguage() {
             window.currentGameLang = (window.currentGameLang === 'vi') ? 'en' : 'vi';
+            try { localStorage.setItem('st_game_lang', window.currentGameLang); } catch (e) {}
             applyCurrentLanguageToAllUI();
             if (soundFX && soundFX.playRadioBeep) soundFX.playRadioBeep();
         }
 
         function applyCurrentLanguageToAllUI() {
             const isEn = (window.currentGameLang === 'en');
+
+            // Dịch Menu Dropdown chọn đồ họa (#gfx-mode-select) & thanh chọn nhanh
+            const gfxSelect = document.getElementById('gfx-mode-select');
+            if (gfxSelect) {
+                const curVal = gfxSelect.value;
+                gfxSelect.title = isEn ? 'Select graphics profile for your system' : 'Chọn cấu hình Đồ họa phù hợp với máy tính của bạn';
+                const optHigh = gfxSelect.querySelector('option[value="HIGH"]');
+                const optPotato = gfxSelect.querySelector('option[value="POTATO"]');
+                const optUltra = gfxSelect.querySelector('option[value="ULTRA_POTATO"]');
+                if (optHigh) optHigh.textContent = isEn ? '✨ GRAPHICS: HIGH' : '✨ ĐỒ HỌA: CAO';
+                if (optPotato) optPotato.textContent = isEn ? '⚡ GRAPHICS: LOW SPEC' : '⚡ ĐỒ HỌA: MÁY YẾU';
+                if (optUltra) optUltra.textContent = isEn ? '🥔 GRAPHICS: ULTRA POTATO' : '🥔 ĐỒ HỌA: SIÊU YẾU (CỰC ĐOAN)';
+                gfxSelect.value = curVal;
+            }
+
+            safeSetText('loading-gfx-high', isEn ? '✨ HIGH' : '✨ CAO');
+            safeSetText('loading-gfx-potato', isEn ? '⚡ LOW SPEC' : '⚡ MÁY YẾU');
+            safeSetText('loading-gfx-ultra', isEn ? '🥔 ULTRA POTATO' : '🥔 SIÊU YẾU');
+
             const langTxt = document.getElementById('lang-toggle-txt');
             const langFlag = document.getElementById('lang-flag-svg');
             if (langTxt) langTxt.textContent = isEn ? 'EN' : 'VI';
@@ -37979,6 +38036,11 @@ function createHouseWindowEmissiveTexture() {
         }
 
         window.onload = function () {
+            // Đồng bộ ngôn ngữ nếu đang ở Tiếng Anh
+            if (window.currentGameLang === 'en') {
+                applyCurrentLanguageToAllUI();
+            }
+
             // Đồng bộ giá trị Dropdown chọn đồ họa trên Menu
             const gfxSelect = document.getElementById('gfx-mode-select');
             if (gfxSelect) {
@@ -38070,6 +38132,7 @@ function createHouseWindowEmissiveTexture() {
             }
         })();
         
+    
     </script>
 </body>
 </html>
